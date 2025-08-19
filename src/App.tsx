@@ -72,10 +72,23 @@ function App() {
     
     // Save initial state
     saveToHistory();
-    
-    // Try to load saved canvas
-    loadCanvas();
   }, []);
+
+  // Load canvas when data changes
+  useEffect(() => {
+    if (canvasData) {
+      loadCanvas();
+    }
+  }, [canvasData, loadCanvas]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+    };
+  }, [saveTimeout]);
 
   const saveToHistory = useCallback(() => {
     const canvas = canvasRef.current;
@@ -100,7 +113,7 @@ function App() {
     setHistoryIndex(prev => prev + 1);
   }, [historyIndex]);
 
-  const undo = useCallback(() => {
+  const undo = useCallback(async () => {
     if (historyIndex <= 0) return;
     
     const canvas = canvasRef.current;
@@ -110,10 +123,10 @@ function App() {
     const prevEntry = history[historyIndex - 1];
     ctx.putImageData(prevEntry.imageData, 0, 0);
     setHistoryIndex(prev => prev - 1);
-    saveCanvas();
-  }, [history, historyIndex]);
+    await saveCanvas();
+  }, [history, historyIndex, saveCanvas]);
 
-  const redo = useCallback(() => {
+  const redo = useCallback(async () => {
     if (historyIndex >= history.length - 1) return;
     
     const canvas = canvasRef.current;
@@ -123,20 +136,21 @@ function App() {
     const nextEntry = history[historyIndex + 1];
     ctx.putImageData(nextEntry.imageData, 0, 0);
     setHistoryIndex(prev => prev + 1);
-    saveCanvas();
-  }, [history, historyIndex]);
+    await saveCanvas();
+  }, [history, historyIndex, saveCanvas]);
 
-  const saveCanvas = useCallback(() => {
+  const [canvasData, setCanvasData] = useKV('pixel-canvas-data', '');
+
+  const saveCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
     const dataUrl = canvas.toDataURL();
-    localStorage.setItem('pixel-canvas-data', dataUrl);
-  }, []);
+    setCanvasData(dataUrl);
+  }, [setCanvasData]);
 
-  const loadCanvas = useCallback(() => {
-    const saved = localStorage.getItem('pixel-canvas-data');
-    if (!saved) return;
+  const loadCanvas = useCallback(async () => {
+    if (!canvasData) return;
     
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -147,10 +161,10 @@ function App() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
     };
-    img.src = saved;
-  }, []);
+    img.src = canvasData;
+  }, [canvasData]);
 
-  const clearCanvas = useCallback(() => {
+  const clearCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
@@ -158,8 +172,8 @@ function App() {
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     saveToHistory();
-    saveCanvas();
-  }, [backgroundColor, saveToHistory]);
+    await saveCanvas();
+  }, [backgroundColor, saveToHistory, saveCanvas]);
 
   const getPixelCoords = useCallback((event: React.MouseEvent): Point => {
     const canvas = canvasRef.current;
@@ -345,7 +359,7 @@ function App() {
     }
   }, [drawPixel, canvasSize]);
 
-  const handleMouseDown = (event: React.MouseEvent) => {
+  const handleMouseDown = async (event: React.MouseEvent) => {
     const point = getPixelCoords(event);
     setStartPoint(point);
     setCurrentPoint(point);
@@ -365,7 +379,7 @@ function App() {
       const targetColor = getPixelColor(point.x, point.y);
       floodFill(point.x, point.y, targetColor, foregroundColor);
       saveToHistory();
-      saveCanvas();
+      await saveCanvas();
       return;
     }
     
@@ -375,6 +389,21 @@ function App() {
       drawPixel(point.x, point.y, backgroundColor);
     }
   };
+
+  // Debounced save for continuous drawing
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  const debouncedSave = useCallback(() => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+    
+    const timeout = setTimeout(async () => {
+      await saveCanvas();
+    }, 500); // Save 500ms after drawing stops
+    
+    setSaveTimeout(timeout);
+  }, [saveCanvas, saveTimeout]);
 
   const handleMouseMove = (event: React.MouseEvent) => {
     const point = getPixelCoords(event);
@@ -386,8 +415,10 @@ function App() {
     
     if (activeTool === 'pencil') {
       drawPixel(point.x, point.y, foregroundColor);
+      debouncedSave(); // Auto-save during drawing
     } else if (activeTool === 'eraser') {
       drawPixel(point.x, point.y, backgroundColor);
+      debouncedSave(); // Auto-save during erasing
     }
     
     // Draw preview for shape tools
@@ -424,7 +455,7 @@ function App() {
     }
   };
 
-  const handleMouseUp = (event: React.MouseEvent) => {
+  const handleMouseUp = async (event: React.MouseEvent) => {
     if (!isDrawing) return;
     
     const point = getPixelCoords(event);
@@ -447,7 +478,7 @@ function App() {
     
     setIsDrawing(false);
     saveToHistory();
-    saveCanvas();
+    await saveCanvas();
   };
 
   // Keyboard shortcuts
@@ -516,7 +547,7 @@ function App() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (!canvas || !ctx) return;
@@ -524,7 +555,7 @@ function App() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvasSize.width, canvasSize.height);
         saveToHistory();
-        saveCanvas();
+        await saveCanvas();
       };
       img.src = e.target?.result as string;
     };
