@@ -54,6 +54,10 @@ function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Canvas data persistence
+  const [canvasData, setCanvasData] = useKV('pixel-canvas-data', '');
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+
   // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -126,21 +130,6 @@ function App() {
     await saveCanvas();
   }, [history, historyIndex, saveCanvas]);
 
-  const redo = useCallback(async () => {
-    if (historyIndex >= history.length - 1) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
-    
-    const nextEntry = history[historyIndex + 1];
-    ctx.putImageData(nextEntry.imageData, 0, 0);
-    setHistoryIndex(prev => prev + 1);
-    await saveCanvas();
-  }, [history, historyIndex, saveCanvas]);
-
-  const [canvasData, setCanvasData] = useKV('pixel-canvas-data', '');
-
   const saveCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -163,6 +152,19 @@ function App() {
     };
     img.src = canvasData;
   }, [canvasData]);
+
+  const redo = useCallback(async () => {
+    if (historyIndex >= history.length - 1) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    
+    const nextEntry = history[historyIndex + 1];
+    ctx.putImageData(nextEntry.imageData, 0, 0);
+    setHistoryIndex(prev => prev + 1);
+    await saveCanvas();
+  }, [history, historyIndex, saveCanvas]);
 
   const clearCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -390,8 +392,7 @@ function App() {
     }
   };
 
-  // Debounced save for continuous drawing
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+
   
   const debouncedSave = useCallback(() => {
     if (saveTimeout) {
