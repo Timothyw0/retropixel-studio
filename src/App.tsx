@@ -132,6 +132,14 @@ function App() {
     setHistoryIndex(prev => prev + 1);
   }, [historyIndex]);
 
+  const saveCanvas = useCallback(async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const dataUrl = canvas.toDataURL();
+    setCanvasData(dataUrl);
+  }, [setCanvasData]);
+
   const undo = useCallback(async () => {
     if (historyIndex <= 0) return;
     
@@ -144,14 +152,6 @@ function App() {
     setHistoryIndex(prev => prev - 1);
     await saveCanvas();
   }, [history, historyIndex, saveCanvas]);
-
-  const saveCanvas = useCallback(async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const dataUrl = canvas.toDataURL();
-    setCanvasData(dataUrl);
-  }, [setCanvasData]);
 
   const redo = useCallback(async () => {
     if (historyIndex >= history.length - 1) return;
