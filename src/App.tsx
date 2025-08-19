@@ -23,8 +23,8 @@ interface HistoryEntry {
 
 function App() {
   // Canvas settings
-  const [canvasSize] = useState({ width: 32, height: 32 });
-  const [zoom, setZoom] = useState(8);
+  const [canvasSize] = useState({ width: 1024, height: 1024 });
+  const [zoom, setZoom] = useState(1);
   const [showGrid, setShowGrid] = useState(true);
   
   // Tools and colors
@@ -515,11 +515,11 @@ function App() {
         case '+':
         case '=':
           event.preventDefault();
-          setZoom(prev => Math.min(16, prev + 1));
+          setZoom(prev => Math.min(8, prev + 0.5));
           break;
         case '-':
           event.preventDefault();
-          setZoom(prev => Math.max(1, prev - 1));
+          setZoom(prev => Math.max(0.1, prev - 0.1));
           break;
         case 'g':
           setShowGrid(!showGrid);
@@ -720,14 +720,14 @@ function App() {
             <span className="text-xs">Zoom:</span>
             <button 
               className="retro-button text-xs"
-              onClick={() => setZoom(Math.max(1, zoom - 1))}
+              onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
             >
               -
             </button>
-            <span className="px-2 text-xs">{zoom}x</span>
+            <span className="px-2 text-xs">{zoom.toFixed(1)}x</span>
             <button 
               className="retro-button text-xs"
-              onClick={() => setZoom(Math.min(16, zoom + 1))}
+              onClick={() => setZoom(Math.min(8, zoom + 0.5))}
             >
               +
             </button>
@@ -797,7 +797,7 @@ function App() {
           </div>
           
           {/* Main Canvas Area */}
-          <div className="flex-1 p-4 bg-gray-100">
+          <div className="flex-1 p-4 bg-gray-100 overflow-auto max-h-96">
             <div className="relative inline-block">
               <canvas
                 ref={canvasRef}
@@ -850,7 +850,7 @@ function App() {
           <span>Cursor: {mousePos.x}, {mousePos.y}</span>
           <span>Tool: {tools.find(t => t.id === activeTool)?.name}</span>
           <span>Canvas: {canvasSize.width}x{canvasSize.height}</span>
-          <span>Zoom: {zoom}x</span>
+          <span>Zoom: {zoom.toFixed(1)}x</span>
         </div>
       </div>
     </div>
