@@ -78,6 +78,21 @@ function App() {
     saveToHistory();
   }, []);
 
+  const loadCanvas = useCallback(async () => {
+    if (!canvasData) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = canvasData;
+  }, [canvasData]);
+
   // Load canvas when data changes
   useEffect(() => {
     if (canvasData) {
@@ -137,21 +152,6 @@ function App() {
     const dataUrl = canvas.toDataURL();
     setCanvasData(dataUrl);
   }, [setCanvasData]);
-
-  const loadCanvas = useCallback(async () => {
-    if (!canvasData) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
-    
-    const img = new Image();
-    img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
-    };
-    img.src = canvasData;
-  }, [canvasData]);
 
   const redo = useCallback(async () => {
     if (historyIndex >= history.length - 1) return;
