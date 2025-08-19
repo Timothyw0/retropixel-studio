@@ -23,7 +23,7 @@ interface HistoryEntry {
 
 function App() {
   // Canvas settings
-  const [canvasSize] = useState({ width: 1024, height: 1024 });
+  const [canvasSize] = useState({ width: 128, height: 128 });
   const [zoom, setZoom] = useState(1);
   const [showGrid, setShowGrid] = useState(true);
   
